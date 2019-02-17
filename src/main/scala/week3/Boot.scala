@@ -115,6 +115,6 @@ object Boot extends App {
   implicit def dogInt(dog: Dog): Int = 4
 
   // uses dogInt to convert Dog to Int
-  println(5 + Dog("Goofy"))
+  println(5 + week3.model.Dog("Goofy"))
 
 }
