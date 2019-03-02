@@ -206,5 +206,4 @@ object Boot extends App {
     case Success(tryResult) => println(s"Try result: $tryResult")
     case Failure(ex) => println(s"Error: ${ex.getMessage}")
   }
-
 }
