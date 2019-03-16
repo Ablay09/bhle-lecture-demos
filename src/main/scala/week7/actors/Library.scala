@@ -1,11 +1,21 @@
 package week7.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import week7.model.{Book => BookModel}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
+import week7.model.{FullName, Book => BookModel}
+
+import scala.concurrent.duration._
 
 object Library {
 
   case class CreateBook(id: String, name: String, author: String, year: Int)
+
+  case class CreateReader(id: String, name: FullName)
+
+  case class BorrowBook(bookId: String, readerId: String)
+
+  case class ReturnBook(bookId: String, readerId: String)
+
+  case class Response(message: String)
 
   case object GetBooks
 
@@ -13,20 +23,59 @@ object Library {
 
   def props() = Props(new Library())
 
+//  type BookId = String
+
 }
 
 class Library extends Actor with ActorLogging {
 
+  // set timeout
+  context.setReceiveTimeout(3.seconds)
+
 //  import Library._
 
   var books = Map.empty[String, ActorRef] //scala.collection.mutable.Map.empty[String, ActorRef] //
+  var readers = Map.empty[String, ActorRef]
+
+  // (readerId -> bookId)
+  var borrowedBooks = Map.empty[String, String]
+
+  private val funBorrowBook = (bookId: String, readerId: String, map: Map[String, String]) => {
+    map + (readerId -> bookId)
+  }
+
+  private val funReturnBook = (bookId: String, readerId: String, map: Map[String, String]) => {
+    map - readerId
+  }
 
   override def receive: Receive = {
     case Library.CreateBook(id, name, author, year) =>
       log.info(s"CreateBook with name $name received.")
       val book: ActorRef = context.actorOf(Book.props(id, name, author, year), id)
-
       books = books + (id -> book)
+      sender() ! Library.Response("OK")
+
+    case Library.CreateReader(id, fullName) =>
+      val reader = context.actorOf(Reader.props(id, fullName), id)
+      readers = readers + (id -> reader)
+
+    case Library.BorrowBook(bookId, readerId) =>
+      log.info(s"Received BorrowBook with bookId: $bookId and readerId: $readerId")
+      // FIXME: use options
+      if (books.keySet.contains(bookId) && readers.keySet.contains(readerId)) {
+        readers(readerId) ! Reader.BorrowBook(bookId)
+        context.become(waitingAck(sender(), bookId, funBorrowBook))
+      } else {
+        // TODO: reply with error
+      }
+
+    case Library.ReturnBook(bookId, readerId) =>
+      if (books.keySet.contains(bookId) && readers.keySet.contains(readerId)) {
+        readers(readerId) ! Reader.ReturnBook(bookId)
+        context.become(waitingAck(sender(), bookId, funReturnBook))
+      } else {
+        // TODO: reply with error
+      }
 
     case Library.GetBooks =>
       log.info("Received GetBooks")
@@ -45,6 +94,23 @@ class Library extends Actor with ActorLogging {
         context.become(receive)
       }
       else context.become(waitingResponses(responsesLeft - 1, replyTo, books = books :+ book))
+  }
+
+  def waitingAck(replyTo: ActorRef, bookId: String, fun: (String, String, Map[String, String]) => Map[String, String]): Receive = {
+    case Reader.Acknowledge(id) =>
+//      borrowedBooks = //function or method (return Map[String, String]      borrowedBooks + (id -> bookId)
+
+      // return
+//      borrowedBooks = borrowedBooks - id
+
+      borrowedBooks = fun(bookId, id, borrowedBooks)
+      replyTo ! Library.Response("OK")
+
+    case Reader.NoAcknowledge(id) =>
+      replyTo ! Library.Response("Not OK")
+
+    case ReceiveTimeout =>
+      log.error("Received timeout while waiting for Ack(s)")
   }
 
 }
