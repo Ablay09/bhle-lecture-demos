@@ -17,7 +17,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 
-object Boot extends App with JsonSupport {
+object Boot extends App with LibraryRoutes {
 //  val system = ActorSystem()
 //  val bot = system.actorOf(Bot.props(), "bot")
 //
@@ -27,37 +27,20 @@ object Boot extends App with JsonSupport {
 
   // needed to run the route
   implicit val system = ActorSystem()
+
   implicit val materializer = ActorMaterializer()
   // needed for the future map/flatmap in the end and future in fetchItem and saveOrder
   implicit val executionContext = system.dispatcher
 
-  //timeout for FUTURE
-  implicit val timeout = Timeout(30.seconds)
 
   val library = system.actorOf(Library.props(), "library")
 
   val route =
     pathPrefix("library") {
-      path("book") {
-        // HTTP POST
-        post {
-          entity(as[BookModel]) { bookModel =>
-            complete {
-              // type cast to Library.Response
-//              "OK"
-              // return type: String, Int, Standard library types, Future, Either, Option
-              (library ? Library.CreateBook(bookModel.id, bookModel.name, bookModel.author, bookModel.year)).mapTo[Library.Response]
-            }
-          }
-        }
-      } ~
-      path("books") {
-        get {
-          complete {
-            (library ? Library.GetBooks).mapTo[Library.Books]
-          }
-        }
-      }
+      concat(
+        bookRoutes,
+        booksRoutes
+      )
     }
 
 

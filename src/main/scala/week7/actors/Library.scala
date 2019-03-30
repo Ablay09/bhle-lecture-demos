@@ -1,7 +1,7 @@
 package week7.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
-import week7.model.{FullName, Book => BookModel}
+import week7.model.{ErrorInfo, FullName, Book => BookModel}
 
 import scala.concurrent.duration._
 
@@ -18,6 +18,8 @@ object Library {
   case class Response(message: String)
 
   case object GetBooks
+
+  case class GetBook(id: String)
 
   case class Books(books: Seq[BookModel])
 
@@ -51,9 +53,15 @@ class Library extends Actor with ActorLogging {
   override def receive: Receive = {
     case Library.CreateBook(id, name, author, year) =>
       log.info(s"CreateBook with name $name received.")
-      val book: ActorRef = context.actorOf(Book.props(id, name, author, year), id)
-      books = books + (id -> book)
-      sender() ! Library.Response("OK")
+
+      if (books.contains(id)) {
+        log.warning(s"Id: $id already exists.")
+        sender() ! Left(ErrorInfo(409, s"Book with id: $id already exists"))
+      } else {
+        val book: ActorRef = context.actorOf(Book.props(id, name, author, year), id)
+        books = books + (id -> book)
+        sender() ! Right(Library.Response("OK"))
+      }
 
     case Library.CreateReader(id, fullName) =>
       val reader = context.actorOf(Reader.props(id, fullName), id)
@@ -77,12 +85,30 @@ class Library extends Actor with ActorLogging {
         // TODO: reply with error
       }
 
+    case Library.GetBook(id) =>
+      log.info(s"Received GetBook with id: $id")
+      books.get(id) match {
+        case Some(bookActor) =>
+          bookActor ! Book.GetData
+          context.become(waitingBookResponse(sender()))
+        case None => sender() ! Left(ErrorInfo(404, s"Book with id: $id not found."))
+      }
+
     case Library.GetBooks =>
       log.info("Received GetBooks")
       // send to all books GetData
       books.values.foreach(bookActor => bookActor ! Book.GetData)
       context.become(waitingResponses(books.size, sender(), Seq.empty[BookModel]))
 
+  }
+
+  def waitingBookResponse(replyTo: ActorRef): Receive = {
+    case book: BookModel =>
+      replyTo ! Right(book)
+      context.become(receive)
+
+    case ReceiveTimeout =>
+      replyTo ! Left(ErrorInfo(504, "Timeout when looking for book."))
   }
 
   def waitingResponses(responsesLeft: Int, replyTo: ActorRef, books: Seq[BookModel]): Receive = {

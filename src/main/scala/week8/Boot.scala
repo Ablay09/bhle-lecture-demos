@@ -4,6 +4,6 @@ import akka.actor.ActorSystem
 
 object Boot extends App {
 
-// Look at wee7: Akka HTTP server implementation
+// Look at wee7: Akka HTTP server imple mentation
 
 }
