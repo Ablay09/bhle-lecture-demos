@@ -6,6 +6,47 @@
 	},
 	"item": [
 		{
+			"name": "Books",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "06643863-9807-4490-943b-d370abc81355",
+						"exec": [
+							"tests[\"Status code is 200\"] = responseCode.code === 200;"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "localhost:8080/library/books?id=1",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"library",
+						"books"
+					],
+					"query": [
+						{
+							"key": "id",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "create Book-1",
 			"event": [
 				{
@@ -43,6 +84,58 @@
 					"path": [
 						"library",
 						"book"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Book-1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "15d90ccd-e8ff-4dc0-a263-7fc15820ebcf",
+						"exec": [
+							"tests[\"Status code is 200\"] = responseCode.code === 200;",
+							"tests[\"Response code is 200\"] = responseBody.has(\"OK\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"id\": \"1\", \n\t\"name\": \"Harry Potter: Philosopher's Stone\", \n\t\"author\": \"J.K.Rowling\", \n\t\"year\": 1998\n}"
+				},
+				"url": {
+					"raw": "localhost:8080/library/book?id=1",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"library",
+						"book"
+					],
+					"query": [
+						{
+							"key": "id",
+							"value": "1"
+						}
 					]
 				}
 			},
